@@ -28,7 +28,7 @@ architecture Behavioral of lpc_filter is
     signal read_ok : std_logic := '0';
     signal cycle_rdaddr : std_logic_vector(11 downto 0) := (others => '0');
     signal cycle_wraddr : std_logic_vector(11 downto 0) := (others => '0');
-    signal cycle_size : std_logic_vector(7 downto 0) := (others => '0');
+    signal cycle_start_addr : std_logic_vector(11 downto 0) := (others => '0');
     signal finished_cycle : std_logic := '1';
     signal data_out : std_logic_vector(7 downto 0);
     signal data_available : std_logic := '0';
@@ -61,21 +61,33 @@ begin
             else
                 if conv_integer(wraddr) = conv_integer(rdaddr - 1) then
                     FULL <= '1';
+                    read_ok <= '1';
                 else
                     FULL <= '0';
                 end if;
                 if rdaddr = wraddr then
                     data_available <= '0';
                 end if;
+                if rdaddr = cycle_start_addr then
+                    read_ok <= '0';
+                end if;
                 if WREN = '1' then
                     RAM(conv_integer(wraddr)) <= DI;
+                    if DI = X"0A" or DI = X"21"then
+                        read_ok <= '1';
+                        if conv_integer(wraddr) = 4095 then
+                            cycle_start_addr <= (others => '0');
+                        else
+                            cycle_start_addr <= wraddr + 1;
+                        end if;
+                    end if;
                     if conv_integer(wraddr) = 4095 then
                         wraddr <= (others => '0');
                     else
                         wraddr <= wraddr + 1;
                     end if;
                 end if;
-                if RDEN = '1' and rdaddr /= wraddr then
+                if RDEN = '1' and rdaddr /= wraddr and read_ok = '1' then
                     data_out <= RAM(conv_integer(rdaddr));
                     data_available <= '1';
                     if conv_integer(rdaddr) = 4095 then
