@@ -22,7 +22,7 @@ end lpc_filter;
 architecture Behavioral of lpc_filter is
     type data_array is array (4095 downto 0) of std_logic_vector(7 downto 0);
     signal RAM : data_array;
-    signal cycle_start : data_array;
+    signal cycle_pass : data_array;
     signal rdaddr : std_logic_vector(11 downto 0) := (others => '0');
     signal wraddr : std_logic_vector(11 downto 0) := (others => '0');
     signal read_ok : std_logic := '0';
@@ -73,12 +73,23 @@ begin
                 end if;
                 if WREN = '1' then
                     RAM(conv_integer(wraddr)) <= DI;
-                    if DI = X"0A" or DI = X"21"then
+                    if DI = X"0A" or DI = X"21" then
                         read_ok <= '1';
+                        if pass_data(lpc_addr, lpc_data) = '1' or DI = X"21" then
+                            cycle_pass(conv_integer(cycle_wraddr)) <= X"01";
+                        else
+                            cycle_pass(conv_integer(cycle_wraddr)) <= X"00";
+                        end if;
+                        
                         if conv_integer(wraddr) = 4095 then
                             cycle_start_addr <= (others => '0');
                         else
                             cycle_start_addr <= wraddr + 1;
+                        end if;
+                        if conv_integer(cycle_wraddr) = 4095 then
+                            cycle_wraddr <= (others => '0');
+                        else
+                            cycle_wraddr <= cycle_wraddr + 1;
                         end if;
                     end if;
                     if conv_integer(wraddr) = 4095 then
@@ -89,7 +100,14 @@ begin
                 end if;
                 if RDEN = '1' and rdaddr /= wraddr and read_ok = '1' then
                     data_out <= RAM(conv_integer(rdaddr));
-                    data_available <= '1';
+                    data_available <= cycle_pass(conv_integer(cycle_rdaddr))(0);
+                    if RAM(conv_integer(rdaddr)) = X"0A" or RAM(conv_integer(rdaddr)) = X"21" then
+                        if conv_integer(cycle_rdaddr) = 4095 then
+                            cycle_rdaddr <= (others => '0');
+                        else
+                            cycle_rdaddr <= cycle_rdaddr + 1;
+                        end if;
+                    end if;
                     if conv_integer(rdaddr) = 4095 then
                         rdaddr <= (others => '0');
                     else
