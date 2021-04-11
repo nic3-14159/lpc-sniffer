@@ -71,6 +71,12 @@ signal fifo_have_data : std_logic := '0';
 
 signal counter : std_logic_vector(3 downto 0) := "0000";
 
+signal filter_have_data : std_logic := '0';
+signal filter_data : std_logic_vector(7 downto 0);
+signal filter_full : std_logic := '0';
+signal filter_read_en : std_logic := '0';
+signal filter_write_en : std_logic := '0';
+
 begin
     ps7_stub: entity work.ps7_stub(RTL);
     uart_inst: entity work.uart(Behavioral)
@@ -93,17 +99,30 @@ begin
             lpc_cycle_data => cycle_data
         );
     fifo_inst: entity work.fifo_buf(Behavioral)
-        port map (
+        port map(
             DO => fifo_out,
             EMPTY => fifo_empty,
             FULL => fifo_full,
-            DI => lpc_data,
+            DI => filter_data,
             RDCLK => uart_clk,
             RDEN => fifo_read_en,
             RST => fifo_reset,
             WRCLK => lpc_clk,
             WREN => fifo_write_en
         );
+    lpc_filter_inst: entity work.lpc_filter(Behavioral)
+    port map(
+        lpc_addr => cycle_addr, --in std_logic_vector(31 downto 0);
+        lpc_data => cycle_data, --in std_logic_vector(31 downto 0);
+        have_data => filter_have_data, --out std_logic;
+        DO => filter_data, --out std_logic_vector(7 downto 0);
+        FULL => filter_full, --out std_logic;
+        DI => lpc_data, --in std_logic_vector(7 downto 0);
+        CLK => lpc_clk, --in std_logic;
+        RST => fifo_reset, --in std_logic;
+        WREN => filter_write_en, --in std_logic;
+        RDEN => filter_read_en --in std_logic
+    );
     reset : process (uart_clk)
     begin
         if rising_edge(uart_clk) then
@@ -121,10 +140,12 @@ begin
         end if;
     end process;
     
-    fifo_write_en <= lpc_have_data and not fifo_full and not fifo_reset;
+    fifo_write_en <= filter_have_data and not fifo_full and not fifo_reset;
+    filter_write_en <= lpc_have_data and not filter_full and not fifo_reset;
     fifo_read_en <= uart_read and not fifo_reset;
+    filter_read_en <= not fifo_full and not fifo_reset;
     fifo_have_data <= not fifo_empty and not fifo_reset;
     lpc_combined_rst <= lpc_reset or not fifo_reset;
     fifo_full_led <= not fifo_full;
-    led_green <= '1';
+    led_green <= not filter_full;
 end Behavioral;

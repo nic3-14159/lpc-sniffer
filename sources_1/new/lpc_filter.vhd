@@ -63,52 +63,31 @@ begin
                     FULL <= '1';
                 else
                     FULL <= '0';
-                    if WREN = '1' then
-                        RAM(conv_integer(wraddr)) <= DI;
-                        cycle_size <= cycle_size + 1;
-                        if DI = X"0A" then
-                            read_ok <= '1';
-                            if pass_data(lpc_addr, lpc_data) = '1' then
-                                cycle_start(conv_integer(cycle_wraddr)) <= X"00";         
-                            else
-                                cycle_start(conv_integer(cycle_wraddr)) <= cycle_size + 1;
-                            end if;
-                            cycle_wraddr <= cycle_wraddr + 1;
-                            cycle_size <= (others => '0');
-                        end if;
-                        if conv_integer(wraddr) = 4095 then
-                            wraddr <= (others => '0');
-                        else
-                            wraddr <= wraddr + 1;
-                        end if;
-                    end if;
-                    if rdaddr /= wraddr then
-                        if read_ok = '1' and RDEN = '1' then
-                            if finished_cycle <= '1' then
-                                rdaddr <= rdaddr + cycle_start(conv_integer(cycle_rdaddr));
-                                cycle_rdaddr <= cycle_rdaddr + 1;
-                                finished_cycle <= '0';
-                            end if;
-                            if RAM(conv_integer(rdaddr)) /= X"0A" then
-                                data_out <= RAM(conv_integer(rdaddr));
-                                data_available <= '1';
-                                if conv_integer(rdaddr) = 4095 then
-                                    rdaddr <= (others => '0');
-                                else
-                                    rdaddr <= rdaddr + 1;
-                                end if;
-                            else
-                                finished_cycle <= '1';
-                            end if;
-                        end if;
+                end if;
+                if rdaddr = wraddr then
+                    data_available <= '0';
+                end if;
+                if WREN = '1' then
+                    RAM(conv_integer(wraddr)) <= DI;
+                    if conv_integer(wraddr) = 4095 then
+                        wraddr <= (others => '0');
                     else
-                        read_ok <= '0';
-                        data_available <= '0';
+                        wraddr <= wraddr + 1;
+                    end if;
+                end if;
+                if RDEN = '1' and rdaddr /= wraddr then
+                    data_out <= RAM(conv_integer(rdaddr));
+                    data_available <= '1';
+                    if conv_integer(rdaddr) = 4095 then
+                        rdaddr <= (others => '0');
+                    else
+                        rdaddr <= rdaddr + 1;
                     end if;
                 end if;
             end if;
         end if;
     end process;
+    
     process (CLK)
     begin
         if falling_edge(CLK) then
