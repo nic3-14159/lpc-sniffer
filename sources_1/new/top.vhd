@@ -37,8 +37,8 @@ use unimacro.Vcomponents.all;
 
 entity top is
     port(
-        tx : out STD_LOGIC;
-        clk : in STD_LOGIC;
+        uart_txd : out STD_LOGIC;
+        uart_clk : in STD_LOGIC;
         lpc_clk : in STD_LOGIC;
         lpc_ad : in STD_LOGIC_VECTOR (3 downto 0);
         lpc_frame : in STD_LOGIC;
@@ -50,30 +50,36 @@ entity top is
 end top;
 
 architecture Behavioral of top is
+-- FIFO signals
 signal fifo_out : std_logic_vector(7 downto 0);
+signal fifo_read_en : std_logic := '0';
+signal fifo_write_en : std_logic := '0';
 signal fifo_empty : std_logic := '1';
 signal fifo_full : std_logic := '0';
 signal fifo_reset : std_logic := '1';
+
+-- LPC State Machine signals
 signal lpc_have_data : std_logic := '0';
-signal read_en : std_logic := '0';
-signal data_available : std_logic := '0';
-signal fifo_read_en : std_logic := '0';
-signal fifo_write_en : std_logic := '0';
 signal lpc_data : std_logic_vector(7 downto 0);
-signal counter : std_logic_vector(3 downto 0) := "0000";
-signal lpc_combined_rst : std_logic := '0';
 signal cycle_data : std_logic_vector(31 downto 0);
 signal cycle_addr : std_logic_vector(31 downto 0);
+signal lpc_combined_rst : std_logic := '0';
+
+-- For UART
+signal uart_read : std_logic := '0';
+signal fifo_have_data : std_logic := '0';
+
+signal counter : std_logic_vector(3 downto 0) := "0000";
 
 begin
     ps7_stub: entity work.ps7_stub(RTL);
     uart_inst: entity work.uart(Behavioral)
         port map(
-            uart_clk => clk,
-            txd => tx,
+            clk => uart_clk,
+            txd => uart_txd,
             uart_char => fifo_out,
-            uart_read => read_en,
-            data_available => data_available
+            uart_read => uart_read,
+            data_available => fifo_have_data
         );
     lpc_inst: entity work.lpc(Behavioral)
         port map(
@@ -86,47 +92,21 @@ begin
             lpc_cycle_addr => cycle_addr,
             lpc_cycle_data => cycle_data
         );
---    fifo_0: FIFO_DUALCLOCK_MACRO
---        generic map (
---            DEVICE => "7SERIES",
---            ALMOST_FULL_OFFSET => X"0080",
---            ALMOST_EMPTY_OFFSET => X"0080",
---            DATA_WIDTH => 8,
---            FIFO_SIZE => "36Kb",
---            FIRST_WORD_FALL_THROUGH => FALSE
---        )
---        port map (
---            ALMOSTEMPTY => open,
---            ALMOSTFULL => open,
---            DO => fifo_out (7 downto 0),
---            EMPTY => fifo_empty,
---            FULL => fifo_full,
---            RDCOUNT => open,
---            RDERR => open,
---            WRCOUNT => open,
---            WRERR => open,
---            DI => lpc_data (7 downto 0),
---            RDCLK => clk,
---            RDEN => fifo_read_en,
---            RST => fifo_reset,
---            WRCLK => lpc_clk,
---            WREN => fifo_write_en
---        );
     fifo_inst: entity work.fifo_buf(Behavioral)
         port map (
             DO => fifo_out,
             EMPTY => fifo_empty,
             FULL => fifo_full,
             DI => lpc_data,
-            RDCLK => clk,
+            RDCLK => uart_clk,
             RDEN => fifo_read_en,
             RST => fifo_reset,
             WRCLK => lpc_clk,
             WREN => fifo_write_en
         );
-    reset : process (clk)
+    reset : process (uart_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(uart_clk) then
             if reset_all = '0' then
                 counter <= "0000";
                 fifo_reset <= '1';
@@ -142,8 +122,8 @@ begin
     end process;
     
     fifo_write_en <= lpc_have_data and not fifo_full and not fifo_reset;
-    data_available <= not fifo_empty and not fifo_reset;
-    fifo_read_en <= read_en and not fifo_reset;
+    fifo_read_en <= uart_read and not fifo_reset;
+    fifo_have_data <= not fifo_empty and not fifo_reset;
     lpc_combined_rst <= lpc_reset or not fifo_reset;
     fifo_full_led <= not fifo_full;
     led_green <= '1';

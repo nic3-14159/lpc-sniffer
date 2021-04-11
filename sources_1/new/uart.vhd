@@ -34,7 +34,7 @@ use UNISIM.VComponents.all;
 entity uart is
     Port (
         txd : out std_logic;
-        uart_clk : in std_logic;
+        clk : in std_logic;
         uart_char : in std_logic_vector(7 downto 0);
         uart_read : out std_logic;
         data_available : in std_logic
@@ -46,9 +46,9 @@ architecture Behavioral of uart is
     signal tx: std_logic := '1';
     signal read : std_logic := '0';
 begin
-    transmit: process(uart_clk)
+    transmit: process(clk)
     begin
-        if falling_edge(uart_clk) then
+        if falling_edge(clk) then
             if data_available = '1' or not (counter = 0) then
                 case counter is
                     when 0 =>
