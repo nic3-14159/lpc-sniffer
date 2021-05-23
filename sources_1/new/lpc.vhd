@@ -22,6 +22,8 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
+library work;
+use work.lpc_types.all;
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
 --use IEEE.NUMERIC_STD.ALL;
@@ -39,12 +41,13 @@ entity lpc is
            lpc_data_out : out STD_LOGIC_VECTOR (7 downto 0);
            lpc_have_data : out STD_LOGIC;
            lpc_cycle_addr : out STD_LOGIC_VECTOR (31 downto 0);
-           lpc_cycle_data : out STD_LOGIC_VECTOR (31 downto 0)
+           lpc_cycle_data : out STD_LOGIC_VECTOR (31 downto 0);
+           lpc_cycle_type : out LPC_TYPE
          );
+         
 end lpc;
 
 architecture Behavioral of lpc is
-    TYPE LPC_STATE IS (IDLE, START, CTDIR, SIZE, BM_TAR, TAR_A, TAR_B, ADDR_CHANNEL, DATA, SYNC);
     signal state : LPC_STATE := IDLE;
     signal cyc_start : std_logic_vector (3 downto 0) := "0000";
     signal cyc_type_dir : std_logic_vector (3 downto 0) := "0000";
@@ -303,6 +306,13 @@ begin
                                 TAR_continue <= '1';
                             when "0101" | "0110" =>
                                 state <= SYNC;
+                            when "1111" =>
+                                if lpc_frame = '1' then
+                                    state <= SYNC;
+                                else
+                                    state <= IDLE;
+                                    lpc_data <= "00100001";
+                                end if;
                             when others =>
                                 state <= IDLE;
                                 lpc_data <= "00100001";
@@ -318,6 +328,50 @@ begin
             lpc_have_data <= have_data;
             lpc_cycle_data <= cycle_data;
             lpc_cycle_addr <= cycle_addr;
+--            if lpc_data /= X"0A" and lpc_data /= X"21" then
+--                case cyc_start is
+--                    when "0000" =>
+--                        case cyc_type_dir(3 downto 1) is
+--                            when "000" => lpc_data_out <= "01000001"; --IO_R;
+--                            when "001" => lpc_data_out <= "01000010"; --IO_W;
+--                            when "010" => lpc_data_out <= "01000011"; --MEM_R;
+--                            when "011" => lpc_data_out <= "01000100"; --MEM_W;
+--                            when "100" => lpc_data_out <= "01000101"; --DMA_R;
+--                            when "101" => lpc_data_out <= "01000110"; --DMA_W;
+--                            when others => lpc_data_out <= "01000111"; --OTHER;
+--                        end case;
+--                    when "0010" | "0011" =>
+--                        case cyc_type_dir(3 downto 1) is
+--                            when "000" => lpc_data_out <= "01001000"; --BM_IO_R;
+--                            when "001" => lpc_data_out <= "01001001"; --BM_IO_W;
+--                            when "010" => lpc_data_out <= "01001010"; --BM_MEM_R;
+--                            when "011" => lpc_data_out <= "01001011"; --BM_MEM_W;
+--                            when others => lpc_data_out <= "01000111"; --OTHER;
+--                        end case;
+--                    when others => lpc_cycle_type <= OTHER;
+--                end case;
+--            end if;
+            case cyc_start is
+                when "0000" =>
+                    case cyc_type_dir(3 downto 1) is
+                        when "000" => lpc_cycle_type <= IO_R;
+                        when "001" => lpc_cycle_type <= IO_W;
+                        when "010" => lpc_cycle_type <= MEM_R;
+                        when "011" => lpc_cycle_type <= MEM_W;
+                        when "100" => lpc_cycle_type <= DMA_R;
+                        when "101" => lpc_cycle_type <= DMA_W;
+                        when others => lpc_cycle_type <= OTHER;
+                    end case;
+                when "0010" | "0011" =>
+                    case cyc_type_dir(3 downto 1) is
+                        when "000" => lpc_cycle_type <= BM_IO_R;
+                        when "001" => lpc_cycle_type <= BM_IO_W;
+                        when "010" => lpc_cycle_type <= BM_MEM_R;
+                        when "011" => lpc_cycle_type <= BM_MEM_W;
+                        when others => lpc_cycle_type <= OTHER;
+                    end case;
+                when others => lpc_cycle_type <= OTHER;
+            end case;
         end if;
     end process;
 end Behavioral;

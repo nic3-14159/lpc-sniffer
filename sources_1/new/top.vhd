@@ -35,6 +35,9 @@ use UNISIM.VComponents.all;
 library UNIMACRO;
 use unimacro.Vcomponents.all;
 
+library work;
+use work.lpc_types.all;
+
 entity top is
     port(
         uart_txd : out STD_LOGIC;
@@ -63,6 +66,7 @@ signal lpc_have_data : std_logic := '0';
 signal lpc_data : std_logic_vector(7 downto 0);
 signal cycle_data : std_logic_vector(31 downto 0);
 signal cycle_addr : std_logic_vector(31 downto 0);
+signal cycle_type : LPC_TYPE;
 signal lpc_combined_rst : std_logic := '0';
 
 -- For UART
@@ -96,7 +100,8 @@ begin
             lpc_data_out => lpc_data,
             lpc_have_data => lpc_have_data,
             lpc_cycle_addr => cycle_addr,
-            lpc_cycle_data => cycle_data
+            lpc_cycle_data => cycle_data,
+            lpc_cycle_type => cycle_type
         );
     fifo_inst: entity work.fifo_buf(Behavioral)
         port map(
@@ -112,8 +117,9 @@ begin
         );
     lpc_filter_inst: entity work.lpc_filter(Behavioral)
     port map(
-        lpc_addr => cycle_addr, --in std_logic_vector(31 downto 0);
-        lpc_data => cycle_data, --in std_logic_vector(31 downto 0);
+        cycle_addr => cycle_addr, --in std_logic_vector(31 downto 0);
+        cycle_data => cycle_data, --in std_logic_vector(31 downto 0);
+        cycle_type => cycle_type,
         have_data => filter_have_data, --out std_logic;
         DO => filter_data, --out std_logic_vector(7 downto 0);
         FULL => filter_full, --out std_logic;
