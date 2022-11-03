@@ -7,17 +7,17 @@ use work.lpc_types.all;
 
 entity lpc_filter is
     port(
-        cycle_addr : in std_logic_vector(31 downto 0);
-        cycle_data : in std_logic_vector(31 downto 0);
-        cycle_type : in LPC_TYPE;
-        have_data : out std_logic;
-        DO : out std_logic_vector(7 downto 0);
-        FULL : out std_logic;
-        DI : in std_logic_vector(7 downto 0);
+        cycle_addr : in std_logic_vector(31 downto 0); -- address of cycle, for filter
+        cycle_data : in std_logic_vector(31 downto 0); -- cycle data, for filter
+        cycle_type : in LPC_TYPE; -- cycle type, for filter
+        have_data : out std_logic; -- status signal, filter buffer is not empty
+        DO : out std_logic_vector(7 downto 0); -- Data output of filter
+        FULL : out std_logic; --Status signal, filter buffer is full
+        DI : in std_logic_vector(7 downto 0); -- Data input of filter
         CLK : in std_logic;
-        RST : in std_logic;
-        WREN : in std_logic;
-        RDEN : in std_logic
+        RST : in std_logic; -- reset
+        WREN : in std_logic; -- write enable, lpc has data
+        RDEN : in std_logic -- read enable, fifo buffer can read data
     );
     attribute RAM_STYLE : string;
     attribute RAM_STYLE of lpc_filter: entity is "BLOCK";
@@ -25,19 +25,24 @@ end lpc_filter;
 
 architecture Behavioral of lpc_filter is
     type data_array is array (4095 downto 0) of std_logic_vector(7 downto 0);
-    signal RAM : data_array;
+    signal RAM : data_array; -- buffer for data
     type pass_array is array (4095 downto 0) of std_logic;
-    signal cycle_pass : pass_array;
+    signal cycle_pass : pass_array; -- array of bits, each indicating whether the cycle should pass
+    -- addresses for RAM array
     signal rdaddr : std_logic_vector(11 downto 0) := (others => '0');
     signal wraddr : std_logic_vector(11 downto 0) := (others => '0');
+    -- Need to wait until cycle is complete before we can start reading
     signal read_ok : std_logic := '0';
+    -- addresses for cycle_pass array
     signal cycle_rdaddr : std_logic_vector(11 downto 0) := (others => '0');
     signal cycle_wraddr : std_logic_vector(11 downto 0) := (others => '0');
     signal cycle_start_addr : std_logic_vector(11 downto 0) := (others => '0');
     signal data_out : std_logic_vector(7 downto 0);
     signal data_available : std_logic := '0';
-    signal pass_count : std_logic_vector(3 downto 0);
-
+    signal pass_count : std_logic_vector(3 downto 0) := (others => '0');
+    signal last_addr : std_logic_vector(31 downto 0) := (others => '0');
+    signal last_data : std_logic_vector(31 downto 0) := (others => '0');
+    signal last_cycle_type : LPC_TYPE := OTHER;
 begin
     process (CLK, WREN, RST)
         impure function pass_data(
@@ -47,8 +52,13 @@ begin
             return std_logic is
             variable pass : std_logic;
         begin
+            --if addr(15 downto 0) = X"03F8" and cycle_type = IO_W then
+                --pass := '1';
+            --else
+                --pass := '0';
+            --end if;
             if addr(15 downto 0) /= X"0910" and addr(15 downto 0) /= X"0911" then
-                pass := '0';
+                pass := '1';
                 pass_count <= (others => '0');
             elsif cycle_type = IO_W and addr(15 downto 0) = X"0910" and data(7 downto 0) = X"00" then
                 if conv_integer(pass_count) < 5 then
@@ -63,10 +73,17 @@ begin
                 else
                     pass := '0';
                 end if;
+            elsif last_addr = addr and last_data = data and last_cycle_type = cycle_type then
+                pass := '0';
+            elsif addr(15 downto 0) = X"0084" then
+                    pass := '0';
             else
                 pass := '1';
                 pass_count <= (others => '0');
             end if;
+            last_addr <= addr;
+            last_data <= data;
+            last_cycle_type <= cycle_type;
             return pass;
         end;
     begin
@@ -83,9 +100,11 @@ begin
                 else
                     FULL <= '0';
                 end if;
+                -- pointers at same position so no data
                 if rdaddr = wraddr then
                     data_available <= '0';
                 end if;
+                -- cycle hasn't been fully read yet
                 if rdaddr = cycle_start_addr then
                     read_ok <= '0';
                 end if;
@@ -93,7 +112,7 @@ begin
                     RAM(conv_integer(wraddr)) <= DI;
                     if DI = X"0A" or DI = X"21" then
                         read_ok <= '1';
-                        if pass_data(cycle_addr, cycle_data, cycle_type) = '1' then
+                        if pass_data(cycle_addr, cycle_data, cycle_type) = '1' and DI = X"0A" then
                             cycle_pass(conv_integer(cycle_wraddr)) <= '1';
                         else
                             cycle_pass(conv_integer(cycle_wraddr)) <= '0';
