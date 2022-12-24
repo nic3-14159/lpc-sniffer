@@ -9,7 +9,6 @@ use work.lpc_types.all;
 entity top is
     port(
         uart_txd : out STD_LOGIC;
-        uart_clk : in STD_LOGIC;
         lpc_clk : in STD_LOGIC;
         lpc_ad : in STD_LOGIC_VECTOR (3 downto 0);
         lpc_frame : in STD_LOGIC;
@@ -48,9 +47,13 @@ signal filter_data : std_logic_vector(7 downto 0);
 signal filter_full : std_logic := '0';
 signal filter_read_en : std_logic := '0';
 signal filter_write_en : std_logic := '0';
+signal uart_clk : std_logic := '0';
 
 begin
-    ps7_stub: entity work.ps7_stub(RTL);
+    ps7_stub: entity work.ps7_stub(RTL)
+        port map(
+            fpga_clk => uart_clk
+        );
     uart_inst: entity work.uart(Behavioral)
         port map(
             clk => uart_clk,

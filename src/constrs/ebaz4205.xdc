@@ -1,5 +1,4 @@
-set_property -dict {PACKAGE_PIN U14 IOSTANDARD LVCMOS33} [get_ports uart_clk]; # TXCLK
-create_clock -add -name uart_clk -period 400.00 [get_ports uart_clk];
+create_clock -add -name uart_clk -period 142.86 [get_ports uart_clk];
 set_property -dict {PACKAGE_PIN A20 IOSTANDARD LVCMOS33} [get_ports uart_txd]; # DATA1-5
 
 set_property -dict {PACKAGE_PIN H16 IOSTANDARD LVCMOS33} [get_ports lpc_clk]; # DATA1-6

@@ -19,10 +19,15 @@ library unisim;
 use unisim.VCOMPONENTS.all;
 
 entity ps7_stub is
+    port(
+	fpga_clk : out std_logic
+    );
 end entity ps7_stub;
 
 architecture RTL of ps7_stub is
+    signal fpga_clks : std_logic_vector(3 downto 0);
 begin
+    fpga_clk <= fpga_clks(0);
     PS7_inst : PS7
     port map (
 	DMA0DATYPE			=> open,		-- out std_logic_vector(1 downto 0);
@@ -137,7 +142,7 @@ begin
 	EVENTEVENTO			=> open,		-- out std_ulogic;
 	EVENTSTANDBYWFE			=> open,		-- out std_logic_vector(1 downto 0);
 	EVENTSTANDBYWFI			=> open,		-- out std_logic_vector(1 downto 0);
-	FCLKCLK				=> open,		-- out std_logic_vector(3 downto 0);
+	FCLKCLK				=> fpga_clks,		-- out std_logic_vector(3 downto 0);
 	FCLKRESETN			=> open,		-- out std_logic_vector(3 downto 0);
 	FTMTF2PTRIGACK			=> open,		-- out std_logic_vector(3 downto 0);
 	FTMTP2FDEBUG			=> open,		-- out std_logic_vector(31 downto 0);
