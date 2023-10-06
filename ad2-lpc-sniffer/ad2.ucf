@@ -1,0 +1,28 @@
+# FT232H
+NET "ADBUS<0>" LOC="N13";
+NET "ADBUS<1>" LOC="P13";
+NET "ADBUS<2>" LOC="N12";
+NET "ADBUS<3>" LOC="P12";
+NET "ADBUS<4>" LOC="L8";
+NET "ADBUS<5>" LOC="N9";
+NET "ADBUS<6>" LOC="M8";
+NET "ADBUS<7>" LOC="N7";
+NET "rx_full_n" LOC="N11";
+NET "tx_empty_n" LOC="P11";
+NET "read_n" LOC="N10";
+NET "write_n" LOC="P10";
+NET "send_immediate_n" LOC="P9";
+NET "ft232_clk" LOC="N8";
+NET "output_en_n" LOC="P8";
+NET "jtag_en" LOC="N6";
+
+NET "lpc_reset" LOC="D1"; # DIO_0
+NET "lpc_frame" LOC="D2"; # DIO_1
+NET "lpc_clk"   LOC="F2"; # DIO_2
+NET "lpc_ad<0>" LOC="G1"; # DIO_3
+NET "lpc_ad<1>" LOC="J1"; # DIO_4
+NET "lpc_ad<2>" LOC="J2"; # DIO_5
+NET "lpc_ad<3>" LOC="H1"; # DIO_6
+
+# NET "external_reset" LOC="H2"; # DIO_7
+NET "fifo_full_led" LOC="H11";
